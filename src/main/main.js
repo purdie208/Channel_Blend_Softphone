@@ -6,8 +6,10 @@ const os = require('os');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 const { SettingsStore } = require('./config/settings');
-const { Recorder } = require('./recording/recorder');
+const { Recorder, personName, shortDate, nextSequence } = require('./recording/recorder');
 const { PhoneEngine } = require('./engine');
+const { Updater } = require('./updater');
+const PKG = require('../../package.json');
 const { exportProvisioning, importProvisioning, inspectProvisioning, usingDevKey } = require('./config/provisioning');
 
 const APP_NAME = 'Channel Blend Softphone';
@@ -25,6 +27,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: t
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 
 let win = null, store = null, engine = null, logStream = null, quitting = false;
+let updater = null, updatePromptPending = false, updateTimer = null;
 let pendingProvFile = findProvArg(process.argv);
 
 function findProvArg(argv) { return (argv || []).find(a => /\.cbprov$/i.test(a) && fs.existsSync(a)) || null; }
@@ -132,6 +135,38 @@ function offerProvFile(file) {
   } catch (e) { send('toast', { type: 'error', title: 'Could not open file', text: e.message }); }
 }
 
+// ------------------------------------------------------------------ updates
+function updateState() {
+  const u = store.get().updates;
+  return { current: app.getVersion(), latest: updater.latest, lastCheck: updater.lastCheck, auto: u.auto !== false, skipped: u.skipped, downloading: updater.downloading, source: PKG.updateRepo || null };
+}
+
+/** Ask the UI to show the update window — never in the middle of a call. */
+function promptUpdate() {
+  if (engine && engine.active) { updatePromptPending = true; return; }
+  updatePromptPending = false;
+  send('update:available', updateState());
+}
+
+async function checkForUpdates(manual) {
+  const r = await updater.check();
+  log(`update check: ${r.status}${r.update ? ' ' + r.update.version : ''}${r.error ? ' (' + r.error + ')' : ''}`);
+  send('update:state', updateState());
+  if (r.status === 'available') {
+    const u = store.get().updates;
+    const quiet = !manual && (u.skipped === r.update.version || Date.now() < (u.remindAfter || 0));
+    if (!quiet) promptUpdate();
+  }
+  return { ...r, state: updateState() };
+}
+
+function scheduleUpdateChecks() {
+  clearInterval(updateTimer);
+  if (store.get().updates.auto === false) return;
+  setTimeout(() => checkForUpdates(false), 20 * 1000);
+  updateTimer = setInterval(() => checkForUpdates(false), 6 * 60 * 60 * 1000);
+}
+
 // ------------------------------------------------------------------ IPC
 function registerIpc() {
   const h = (ch, fn) => ipcMain.handle(ch, async (_e, ...args) => {
@@ -167,6 +202,13 @@ function registerIpc() {
   h('call:mute', (m) => engine.setMute(m));
   h('call:hold', (v) => engine.setHold(v));
   h('rec:toggle', () => engine.toggleRecording());
+  h('rec:next-name', (person) => {
+    const who = personName(person);
+    if (!who) return { name: null };
+    const date = shortDate();
+    const next = nextSequence(store.get().recording.folder, who, date, true);
+    return { name: `${next.name} ${date} (${next.n})` };
+  });
   h('mic:unavailable', (reason) => engine.micUnavailable(reason));
   h('mic:request-access', async () => {
     if (process.platform !== 'darwin') return true;
@@ -174,6 +216,27 @@ function registerIpc() {
     return systemPreferences.askForMediaAccess('microphone');
   });
   h('recents:clear', () => engine.clearRecents());
+
+  h('update:state', () => updateState());
+  h('update:check', () => checkForUpdates(true));
+  h('update:show', () => { if (updater.latest) send('update:available', updateState()); });
+  h('update:later', () => { store.update({ updates: { remindAfter: Date.now() + 24 * 60 * 60 * 1000 } }); return updateState(); });
+  h('update:skip', (version) => { store.update({ updates: { skipped: version || '' } }); return updateState(); });
+  h('update:auto', (on) => { store.update({ updates: { auto: !!on } }); scheduleUpdateChecks(); return updateState(); });
+  h('update:install', async () => {
+    if (engine.active) return { ok: false, error: 'Finish your call first, then update.' };
+    try {
+      const file = await updater.download();
+      log(`update downloaded to ${file}`);
+      const mode = updater.launchInstaller(file, (p) => shell.openPath(p));
+      if (mode === 'restart') setTimeout(() => app.quit(), 300); // installer closes us and reopens the new version
+      return { ok: true, mode };
+    } catch (e) {
+      log('update failed: ' + e.message);
+      return { ok: false, error: e.message };
+    }
+  });
+  h('app:quit', () => app.quit());
 
   h('rec:choose-folder', async () => {
     const r = await dialog.showOpenDialog(win, { title: 'Choose where recordings are saved', defaultPath: store.get().recording.folder, properties: ['openDirectory', 'createDirectory'] });
@@ -270,6 +333,7 @@ app.whenReady().then(() => {
   });
   engine.on('call-ended', (info) => {
     if (win) win.flashFrame(false);
+    if (updatePromptPending) setTimeout(promptUpdate, 4000);
     send('call-ended', info);
     // Desktop notification only when the softphone isn't the window in front
     // (when it is, the in-app notice is enough).
@@ -286,8 +350,12 @@ app.whenReady().then(() => {
   });
   nativeTheme.on('updated', () => { if (win && process.platform !== 'darwin') { try { win.setTitleBarOverlay(overlayColors()); } catch (_) {} } send('theme', nativeTheme.shouldUseDarkColors ? 'dark' : 'light'); });
 
+  updater = new Updater({ repo: PKG.updateRepo, currentVersion: app.getVersion(), platform: process.platform, fetch: (u, o) => net.fetch(u, o), log });
+  updater.on('progress', p => send('update:progress', p));
+
   createWindow();
   engine.start();
+  scheduleUpdateChecks();
   log(`log file ${logPath}`);
 });
 

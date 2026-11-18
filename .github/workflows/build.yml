@@ -41,3 +41,21 @@ jobs:
           path: |
             dist/*.exe
             dist/*.dmg
+
+  release:
+    # Only for version tags (v1.0.2, v1.1.0, ...), not for manual "Run workflow" test builds
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Channel Blend Softphone ${{ github.ref_name }}
+          files: installers/*
+          generate_release_notes: true

@@ -83,7 +83,7 @@ class PhoneEngine extends EventEmitter {
       const a = this.active;
       call = { ...a.call.info(), line: a.line, muted: a.muted, micMissing: a.micMissing,
         wantMic: a.call.state === 'connected' && !a.muted,
-        recording: this.recorder.isRecording ? { active: true, startedAt: a.recStartedAt, file: this.recorder.file } : { active: false } };
+        recording: this.recorder.isRecording ? { active: true, startedAt: a.recStartedAt, file: path.basename(this.recorder.file).replace(/\.mka$/i, '.wav'), person: a.recPerson || '' } : { active: false } };
     }
     return { lines, activeLine: s.activeLine, call, settings: s, recents: this.recents.slice(0, 100) };
   }
@@ -156,7 +156,8 @@ class PhoneEngine extends EventEmitter {
     const saved = this._finishRecording();
     const duration = call.connectedAt ? Math.round((Date.now() - call.connectedAt) / 1000) : 0;
     const missed = call.direction === 'in' && !call.connectedAt;
-    this.recents.unshift({ number: call.remoteNumber, name: call.remoteName, direction: call.direction, line: a.line,
+    const monitored = (this.store.get().monitor.name || '').trim();
+    this.recents.unshift({ number: call.remoteNumber, name: call.remoteName, direction: call.direction, line: a.line, monitored: call.connectedAt ? monitored : '',
       at: call.startedAt, duration, missed, result: call.connectedAt ? 'answered' : reason });
     this.recents = this.recents.slice(0, 200);
     try { fs.writeFileSync(this.recentsFile, JSON.stringify(this.recents)); } catch (_) {}
@@ -202,8 +203,11 @@ class PhoneEngine extends EventEmitter {
     if (!a || a.call.state !== 'connected' || this.recorder.isRecording) return;
     const s = this.store.get();
     try {
-      this.recorder.start({ folder: s.recording.folder, extension: s.lines[a.line].username, number: a.call.remoteNumber });
+      const person = (s.monitor && s.monitor.name || '').trim();
+      this.recorder.start({ folder: s.recording.folder, extension: s.lines[a.line].username, number: a.call.remoteNumber, person });
       a.recStartedAt = Date.now();
+      a.recPerson = person;
+      if (person) this.rememberPerson(person);
     } catch (e) {
       this.emit('toast', { type: 'error', title: 'Could not start recording', text: e.message });
     }
@@ -221,6 +225,13 @@ class PhoneEngine extends EventEmitter {
       if (saved) this.emit('toast', { type: 'success', title: 'Recording saved', text: path.basename(saved.wavPath), path: saved.wavPath });
       this._emitState();
     } else this.startRecording();
+  }
+
+  /** Keep the last 15 monitored names (case-insensitive, newest first) for the quick-pick list. */
+  rememberPerson(name) {
+    const m = this.store.get().monitor;
+    const recent = [name, ...(m.recent || []).filter(n => n.toLowerCase() !== name.toLowerCase())].slice(0, 15);
+    this.store.update({ monitor: { recent } });
   }
 
   clearRecents() { this.recents = []; try { fs.writeFileSync(this.recentsFile, '[]'); } catch (_) {} this._emitState(); }

@@ -38,6 +38,32 @@ function convertMkaToWav(mkaPath, wavPath) {
   return { wavPath: target, seconds: pcm.length / (sampleRate * channels * bitDepth / 8) };
 }
 
+// "Joe Smith" -> safe for Windows/macOS file names (keeps spaces, drops <>:"/\\|?* etc.)
+function personName(s) {
+  return String(s || '').replace(/[<>:"\/\\|?*\x00-\x1f]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '').slice(0, 60);
+}
+function shortDate(d = new Date()) {
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())}-${String(d.getFullYear()).slice(-2)}`;
+}
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Files this app creates: CB_*.mka, or "<Name> MM-DD-YY (n).mka"
+const OUR_MKA = /^(CB_.*|.+ \d{2}-\d{2}-\d{2} \(\d+\))\.mka$/i;
+
+/** Next free "(n)" for this person today, counting finished .wav and in-progress .mka files.
+ *  Also returns the spelling already used today, so "joe smith" continues "Joe Smith". */
+function nextSequence(folder, name, date, withName) {
+  const re = new RegExp('^(' + escRe(name) + ') ' + escRe(date) + ' \\((\\d+)\\)(?: \\(\\d+\\))?\\.(wav|mka)$', 'i');
+  let max = 0, spelled = name;
+  try {
+    for (const f of fs.readdirSync(folder)) {
+      const m = re.exec(f);
+      if (m && +m[2] > max) { max = +m[2]; spelled = m[1]; }
+    }
+  } catch (_) {}
+  return withName ? { n: max + 1, name: spelled } : max + 1;
+}
+
 function stamp(d = new Date()) {
   const p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
@@ -62,12 +88,24 @@ class Recorder {
   get elapsed() { return this.active ? this.active.writer.durationSec : 0; }
   get file() { return this.active ? this.active.mka : null; }
 
-  start({ folder, extension, number }) {
+  start({ folder, extension, number, person }) {
     if (this.active) return this.active.mka;
     fs.mkdirSync(folder, { recursive: true });
-    const base = `${PREFIX}${safe(extension)}_${safe(number)}_${stamp()}`;
-    let mka = path.join(folder, base + '.mka');
-    let i = 2; while (fs.existsSync(mka)) mka = path.join(folder, `${base}_${i++}.mka`);
+    let mka;
+    const who = personName(person);
+    if (who) {
+      // "Joe Smith 11-18-26 (3)" — the sequence continues for the same person on the same day,
+      // even after monitoring someone else or restarting the app.
+      const date = shortDate();
+      const next = nextSequence(folder, who, date, true);
+      let n = next.n;
+      mka = path.join(folder, `${next.name} ${date} (${n}).mka`);
+      while (fs.existsSync(mka) || fs.existsSync(mka.replace(/\.mka$/, '.wav'))) mka = path.join(folder, `${next.name} ${date} (${++n}).mka`);
+    } else {
+      const base = `${PREFIX}${safe(extension)}_${safe(number)}_${stamp()}`;
+      mka = path.join(folder, base + '.mka');
+      let i = 2; while (fs.existsSync(mka)) mka = path.join(folder, `${base}_${i++}.mka`);
+    }
     const writer = new MkaWriter(mka, { sampleRate: 8000, channels: 1, title: `Call with ${number}` });
     const j = this._journal();
     j.active.push({ mka, startedAt: Date.now(), pid: process.pid });
@@ -124,7 +162,7 @@ class Recorder {
     for (const f of folders) {
       try {
         for (const name of fs.readdirSync(f)) {
-          if (name.startsWith(PREFIX) && /\.mka$/i.test(name)) {
+          if (OUR_MKA.test(name)) {
             const full = path.join(f, name);
             const wav = full.replace(/\.mka$/i, '.wav');
             if (!fs.existsSync(wav) || candidates.has(full)) candidates.add(full);
@@ -151,4 +189,4 @@ class Recorder {
   }
 }
 
-module.exports = { Recorder, convertMkaToWav };
+module.exports = { Recorder, convertMkaToWav, personName, shortDate, nextSequence };

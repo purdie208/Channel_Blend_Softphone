@@ -22,12 +22,14 @@ function defaults(desktopDir) {
     audio: { speakerId: 'default', micId: 'default', speakerVolume: 0.85, micVolume: 1.0, ringVolume: 0.7 },
     calls: { autoMute: false, autoRecord: false, clearAfterCall: true, dtmfTones: true, endSound: true, endNotify: true },
     recording: { folder: path.join(desktopDir, 'Channel Blend Recordings'), keepMka: false },
+    monitor: { name: '', recent: [], showField: true },
+    updates: { auto: true, skipped: '', remindAfter: 0 },
     network: { sipPort: 0, rtpPortMin: 5000, rtpPortMax: 36385, registerExpires: 3600, keepAliveSec: 30, usePublicAddress: true }
   };
 }
 
 function merge(base, over) {
-  if (Array.isArray(base)) return Array.isArray(over) ? base.map((b, i) => merge(b, over[i])) : base;
+  if (Array.isArray(base)) return Array.isArray(over) ? over.map((o, i) => (i < base.length ? merge(base[i], o) : o)) : base;
   if (base && typeof base === 'object') {
     const out = { ...base };
     if (over && typeof over === 'object') for (const k of Object.keys(over)) out[k] = k in base ? merge(base[k], over[k]) : over[k];

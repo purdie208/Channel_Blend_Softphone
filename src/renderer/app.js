@@ -80,7 +80,7 @@ async function dial() {
 
 // ---------------------------------------------------------------- keyboard
 document.addEventListener('keydown', (e) => {
-  if (!$('#modal-wrap').classList.contains('hidden')) { if (e.key === 'Escape') closeModal(); return; }
+  if (!$('#modal-wrap').classList.contains('hidden')) { if (e.key === 'Escape' && !updBusy) closeModal(); return; }
   if (S && S.call && S.call.state === 'incoming') {
     if (e.key === 'Enter') { e.preventDefault(); cb.answer(); }
     if (e.key === 'Escape') { e.preventDefault(); cb.reject(); }
@@ -141,12 +141,49 @@ function fmtDur(sec) { sec = Math.max(0, Math.floor(sec)); const m = Math.floor(
 function render() {
   if (!S) return;
   renderLines();
+  renderMonitor();
   renderPhone();
   renderRecents();
   if (view === 'settings') renderSettings(false);
   renderIncoming();
   syncAudio();
 }
+
+// ---------------------------------------------------------------- monitoring name
+let monitorSaveTimer = null;
+function renderMonitor() {
+  const m = S.settings.monitor || { name: '', recent: [], showField: true };
+  document.body.classList.toggle('no-monitor', m.showField === false);
+  const inp = $('#monitor-name');
+  if (document.activeElement !== inp && inp.value !== (m.name || '')) inp.value = m.name || '';
+  $('#monitor-list').innerHTML = (m.recent || []).map(n => `<option value="${esc(n)}"></option>`).join('');
+  const has = !!inp.value.trim();
+  $('#monitor-row').classList.toggle('set', has);
+  $('#monitor-clear').classList.toggle('hidden', !has);
+  updateMonitorHint();
+}
+async function updateMonitorHint() {
+  const name = $('#monitor-name').value.trim();
+  const c = S && S.call;
+  const hint = $('#monitor-hint');
+  if (c && c.recording && c.recording.active) { hint.innerHTML = `Recording to <b>${esc(c.recording.file)}</b>`; return; }
+  if (!name) { hint.textContent = 'Recordings use the phone number unless you enter a name'; return; }
+  const r = await cb.nextRecordingName(name);
+  if (r && r.name && $('#monitor-name').value.trim() === name) hint.innerHTML = `Next recording: <b>${esc(r.name)}.wav</b>`;
+}
+function saveMonitor() {
+  clearTimeout(monitorSaveTimer);
+  monitorSaveTimer = setTimeout(() => cb.updateSettings({ monitor: { name: $('#monitor-name').value.trim() } }), 400);
+}
+$('#monitor-name').addEventListener('input', () => {
+  const has = !!$('#monitor-name').value.trim();
+  $('#monitor-row').classList.toggle('set', has);
+  $('#monitor-clear').classList.toggle('hidden', !has);
+  saveMonitor(); updateMonitorHint();
+});
+$('#monitor-name').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); $('#monitor-name').blur(); $('#number').focus(); } });
+$('#monitor-name').addEventListener('blur', () => { $('#monitor-name').value = $('#monitor-name').value.replace(/\s+/g, ' ').trim(); saveMonitor(); });
+$('#monitor-clear').addEventListener('click', () => { $('#monitor-name').value = ''; $('#monitor-name').dispatchEvent(new Event('input')); $('#monitor-name').focus(); });
 
 function renderLines() {
   $('#lines').innerHTML = S.lines.map(l => {
@@ -193,7 +230,8 @@ function renderPhone() {
     if (c.id !== lastCallId) { lastCallId = c.id; dtmfSent = ''; $('#dtmf-sent').textContent = ''; }
     $('#call-avatar').textContent = initials(c.name, c.number);
     $('#call-who').textContent = c.name || c.number;
-    $('#call-num').textContent = c.name ? c.number : (c.direction === 'in' ? 'Incoming call' : `via ${S.lines[c.line].label}`);
+    const mon = S.settings.monitor && S.settings.monitor.showField !== false ? (S.settings.monitor.name || '') : '';
+    $('#call-num').textContent = (mon ? `Monitoring ${mon} · ` : '') + (c.name ? c.number : (c.direction === 'in' ? 'Incoming call' : `via ${S.lines[c.line].label}`));
     const badges = [];
     if (c.recording.active) badges.push('<span class="badge rec"><i></i>REC</span>');
     if (c.onHold) badges.push('<span class="badge hold">HOLD</span>');
@@ -258,7 +296,7 @@ function renderRecents() {
   $('#recents').innerHTML = list.length ? list.map((r, i) => `
     <div class="recent" data-i="${i}" title="Click to fill in · double-click to call">
       <div class="dir ${r.missed ? 'missed' : ''}">${icon(r.direction === 'in' ? 'incoming' : 'outgoing')}</div>
-      <div class="who"><b>${esc(r.name || r.number)}</b><span>${r.name ? esc(r.number) + ' · ' : ''}${r.missed ? 'Missed' : r.duration ? fmtDur(r.duration) : esc(r.result || '')}</span></div>
+      <div class="who"><b>${esc(r.name || r.number)}</b><span>${r.monitored ? 'Monitoring ' + esc(r.monitored) + ' · ' : ''}${r.name ? esc(r.number) + ' · ' : ''}${r.missed ? 'Missed' : r.duration ? fmtDur(r.duration) : esc(r.result || '')}</span></div>
       <div class="when">${relTime(r.at)}<br>${esc((S.lines[r.line] || {}).label || '')}</div>
     </div>`).join('') : '<div class="empty">No calls yet</div>';
   $$('#recents .recent').forEach(el => {
@@ -296,6 +334,7 @@ function renderSettings(full) {
     setChecked('#s-autorec', s.calls.autoRecord); setChecked('#s-automute', s.calls.autoMute);
     setChecked('#s-clear', s.calls.clearAfterCall); setChecked('#s-tones', s.calls.dtmfTones !== false);
     setChecked('#s-endsound', s.calls.endSound !== false); setChecked('#s-endnotify', s.calls.endNotify !== false);
+    setChecked('#s-showmonitor', !s.monitor || s.monitor.showField !== false);
     setChecked('#s-keepmka', s.recording.keepMka);
     $('#a-micvol').value = Math.round(s.audio.micVolume * 100);
     $('#a-ringvol').value = Math.round(s.audio.ringVolume * 100);
@@ -343,6 +382,7 @@ bindToggle('#s-clear', v => ({ calls: { clearAfterCall: v } }));
 bindToggle('#s-tones', v => ({ calls: { dtmfTones: v } }));
 bindToggle('#s-endsound', v => { if (v) callAudio.endTone(); return { calls: { endSound: v } }; });
 bindToggle('#s-endnotify', v => ({ calls: { endNotify: v } }));
+bindToggle('#s-showmonitor', v => ({ monitor: { showField: v } }));
 bindToggle('#s-keepmka', v => ({ recording: { keepMka: v } }));
 $('#rec-change').addEventListener('click', () => cb.chooseRecordingFolder());
 $('#rec-open').addEventListener('click', () => cb.openRecordingFolder());
@@ -470,7 +510,7 @@ function openModal(html) {
   return new Promise(r => { modalResolve = r; });
 }
 function closeModal(v) { $('#modal-wrap').classList.add('hidden'); const r = modalResolve; modalResolve = null; r && r(v); }
-$('#modal-wrap').addEventListener('mousedown', e => { if (e.target.id === 'modal-wrap') closeModal(); });
+$('#modal-wrap').addEventListener('mousedown', e => { if (e.target.id === 'modal-wrap' && !updBusy) closeModal(); });
 
 function confirmModal(title, text, okLabel = 'OK', danger = false) {
   const p = openModal(`<h3>${esc(title)}</h3><p>${esc(text)}</p><div class="btn-row"><button class="btn ghost" id="m-cancel">Cancel</button><button class="btn ${danger ? '' : 'primary'}" id="m-ok" style="${danger ? 'color:var(--danger)' : ''}">${esc(okLabel)}</button></div>`);
@@ -566,6 +606,98 @@ window.addEventListener('drop', async e => {
   if (info && info.ok !== false) importModal(info, null); else toast({ type: 'error', title: 'Could not open file', text: info && info.error });
 });
 
+// ---------------------------------------------------------------- updates
+let upd = null;          // latest update state from main
+let updBusy = false;
+
+// Tiny, safe Markdown -> HTML for release notes (headings, bullets, bold, code).
+function mdToHtml(md) {
+  const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  let html = '', inList = false;
+  for (const raw of String(md || '').split(/\r?\n/)) {
+    const line = raw.trimEnd();
+    if (/^```/.test(line.trim())) continue;
+    const li = /^\s*[-*]\s+(.*)$/.exec(line);
+    if (li) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${inline(li[1])}</li>`; continue; }
+    if (inList) { html += '</ul>'; inList = false; }
+    const h = /^#{1,6}\s+(.*)$/.exec(line);
+    if (h) html += `<h4>${inline(h[1])}</h4>`;
+    else if (line.trim() && !/^\|?\s*-{3,}/.test(line)) html += `<p>${inline(line.replace(/^\|\s*|\s*\|$/g, '').replace(/\s*\|\s*/g, ' · '))}</p>`;
+  }
+  if (inList) html += '</ul>';
+  return html || '<p>No details were provided for this update.</p>';
+}
+
+function renderUpdateChip() {
+  const show = !!(upd && upd.latest && upd.latest.version !== upd.skipped);
+  $('#tb-update').classList.toggle('hidden', !show);
+  document.body.classList.toggle('has-update', show);
+  if (show) $('#tb-update').textContent = `Update ${upd.latest.version}`;
+  const st = $('#upd-status');
+  if (!upd || !st) return;
+  $('#s-autoupd').checked = upd.auto;
+  if (upd.latest) st.textContent = `Version ${upd.latest.version} is available (you have ${upd.current}).`;
+  else if (upd.lastCheck && upd.lastCheck.status === 'current') st.textContent = `You're up to date (version ${upd.current}).`;
+  else if (upd.lastCheck && upd.lastCheck.error) st.textContent = upd.lastCheck.error;
+  else st.textContent = 'Checks when the app opens and every few hours';
+}
+
+function showUpdateModal(state) {
+  upd = state; renderUpdateChip();
+  const u = state.latest; if (!u) return;
+  const date = u.publishedAt ? new Date(u.publishedAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const onCall = inCall();
+  const mac = cb.platform === 'darwin';
+  openModal(`<h3>Update available</h3>
+    <div class="meta">Version <b>${esc(u.version)}</b>${date ? ' · ' + esc(date) : ''} · you have ${esc(state.current)}</div>
+    <div class="notes">${mdToHtml(u.notes)}</div>
+    <div class="progress hidden" id="upd-progress"><i></i></div>
+    <p id="upd-msg" style="margin-top:10px">${onCall ? 'Finish your call first — you can update right after.' : (mac ? 'The installer opens; drag Channel Blend Softphone into Applications.' : 'Takes about a minute. The softphone closes and reopens by itself.')}</p>
+    <div class="upd-actions"><button class="btn ghost" id="upd-later">Later</button><button class="btn primary" id="upd-now" ${onCall || !u.asset ? 'disabled' : ''}>${icon('download')}Update now</button></div>
+    <button class="upd-skip" id="upd-skip">Skip this version</button>`);
+  if (!u.asset) $('#upd-msg').textContent = 'This release has no installer for your computer yet. Ask IT.';
+  $('#upd-later').onclick = async () => { upd = await cb.updateLater(); closeModal(); renderUpdateChip(); };
+  $('#upd-skip').onclick = async () => { upd = await cb.skipUpdate(u.version); closeModal(); renderUpdateChip(); };
+  $('#upd-now').onclick = async () => {
+    updBusy = true;
+    $('#upd-now').disabled = true; $('#upd-later').disabled = true; $('#upd-skip').classList.add('hidden');
+    $('#upd-progress').classList.remove('hidden');
+    $('#upd-msg').textContent = 'Downloading…';
+    const r = await cb.installUpdate();
+    updBusy = false;
+    if (!r || !r.ok) {
+      $('#upd-msg').innerHTML = `<span style="color:var(--danger)">${esc((r && r.error) || 'The update failed.')}</span>`;
+      $('#upd-now').disabled = false; $('#upd-later').disabled = false;
+      return;
+    }
+    if (r.mode === 'restart') $('#upd-msg').textContent = 'Installing… the softphone will reopen in a moment.';
+    else {
+      $('#upd-msg').innerHTML = 'The installer is open. <b>Quit Channel Blend</b>, then drag the app into <b>Applications</b> and choose <b>Replace</b>.';
+      $('#upd-later').textContent = 'Close'; $('#upd-later').disabled = false;
+      $('#upd-later').onclick = () => closeModal();
+      $('#upd-now').innerHTML = 'Quit Channel Blend'; $('#upd-now').disabled = false;
+      $('#upd-now').onclick = () => cb.quitApp();
+    }
+  };
+}
+
+cb.onUpdateAvailable(state => { if (!updBusy && $('#modal-wrap').classList.contains('hidden')) showUpdateModal(state); else { upd = state; renderUpdateChip(); } });
+cb.onUpdateState(state => { upd = state; renderUpdateChip(); });
+cb.onUpdateProgress(p => {
+  const bar = $('#upd-progress i'); if (bar) bar.style.width = Math.round(p * 100) + '%';
+  const m = $('#upd-msg'); if (m && p < 1) m.textContent = `Downloading… ${Math.round(p * 100)}%`;
+});
+$('#tb-update').addEventListener('click', () => { if (upd && upd.latest) showUpdateModal(upd); });
+$('#upd-check').addEventListener('click', async () => {
+  const b = $('#upd-check'); b.disabled = true; $('#upd-status').textContent = 'Checking…';
+  const r = await cb.checkForUpdates();
+  b.disabled = false;
+  upd = r.state; renderUpdateChip();
+  if (r.status === 'current') toast({ type: 'success', title: "You're up to date", text: `Version ${upd.current} is the latest.` });
+  else if (r.status === 'error') toast({ type: 'error', title: 'Could not check for updates', text: r.error });
+});
+$('#s-autoupd').addEventListener('change', async e => { upd = await cb.setAutoUpdate(e.target.checked); renderUpdateChip(); });
+
 // ---------------------------------------------------------------- boot
 cb.onState(s => {
   const first = !S;
@@ -590,4 +722,5 @@ function applyAudioSettings() {
   $('#about').innerHTML = `Channel Blend Softphone ${esc(info.version)} · ${esc(info.platform)}<br>SIP over UDP · G.711 µ-law/A-law · RFC 2833 DTMF`;
   $('#number').focus();
   cb.ready();
+  upd = await cb.updateState(); renderUpdateChip();
 })();

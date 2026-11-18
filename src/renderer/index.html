@@ -10,12 +10,21 @@
   <div class="titlebar">
     <img src="assets/logo-96.png" alt="">
     <div class="brand">Channel Blend <span>Softphone</span></div>
+    <button class="tb-update hidden" id="tb-update" title="An update is ready">Update available</button>
   </div>
 
   <main>
     <!-- ================= PHONE ================= -->
     <section class="view" id="view-phone">
       <div class="lines" id="lines"></div>
+
+      <div class="monitor" id="monitor-row">
+        <i data-icon="user"></i>
+        <input id="monitor-name" list="monitor-list" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Monitoring someone? Type their name">
+        <datalist id="monitor-list"></datalist>
+        <button class="icon-btn hidden" id="monitor-clear" title="Clear name"><i data-icon="x"></i></button>
+      </div>
+      <div class="monitor-hint" id="monitor-hint"></div>
 
       <div class="display" id="display">
         <div id="welcome" class="welcome hidden">
@@ -112,6 +121,7 @@
         <h3>Calls &amp; recording</h3>
         <div class="toggle-row"><div class="t"><b>Record automatically</b><span>Starts when a call connects</span></div><label class="switch"><input type="checkbox" id="s-autorec"><span></span></label></div>
         <div class="toggle-row"><div class="t"><b>Mute automatically</b><span>For listening to live calls</span></div><label class="switch"><input type="checkbox" id="s-automute"><span></span></label></div>
+        <div class="toggle-row"><div class="t"><b>Show the "Monitoring" name box</b><span>Names recordings after the person you're monitoring</span></div><label class="switch"><input type="checkbox" id="s-showmonitor"><span></span></label></div>
         <div class="toggle-row"><div class="t"><b>Clear number after a call</b><span>Ready for the next number</span></div><label class="switch"><input type="checkbox" id="s-clear"><span></span></label></div>
         <div class="toggle-row"><div class="t"><b>Sound when a call ends</b><span>A short tone when the other side hangs up</span></div><label class="switch"><input type="checkbox" id="s-endsound"><span></span></label></div>
         <div class="toggle-row"><div class="t"><b>Notify when a call ends</b><span>In the app, and on the desktop if it's in the background</span></div><label class="switch"><input type="checkbox" id="s-endnotify"><span></span></label></div>
@@ -162,7 +172,8 @@
       <div class="card">
         <h3>About</h3>
         <p style="margin:0;color:var(--muted);font-size:12.5px" id="about"></p>
-        <div class="btn-row"><button class="btn" id="show-logs">Show log file</button></div>
+        <div class="toggle-row" style="margin-top:6px"><div class="t"><b>Check for updates automatically</b><span id="upd-status">Checks when the app opens and every few hours</span></div><label class="switch"><input type="checkbox" id="s-autoupd"><span></span></label></div>
+        <div class="btn-row"><button class="btn" id="upd-check"><i data-icon="refresh"></i>Check for updates</button><button class="btn" id="show-logs">Show log file</button></div>
       </div>
     </section>
   </main>

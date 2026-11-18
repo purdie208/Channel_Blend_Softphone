@@ -16,6 +16,8 @@ crash-safe way, and lets IT hand out a ready-to-use configuration without ever s
 - **One-click provisioning.** IT exports an encrypted settings file, and the employee imports it with a single click or a double-click on the file.
 - **Modern UI** with light, dark and system themes. System is the default.
 - **Call-ended sound and notification**, so the user always knows when the other side hung up.
+- **Recordings named after the person being monitored**, e.g. `Joe Smith 11-18-26 (3).wav`.
+- **Built-in update check** that shows what's new and lets the user choose *Update now*, *Later* or *Skip this version*.
 
 ## Features
 
@@ -41,6 +43,23 @@ crash-safe way, and lets IT hand out a ready-to-use configuration without ever s
 - **Crash-safe by design.** While recording, audio streams into a Matroska audio file (`.mka`) that is flushed to disk every half second. The file is valid and playable at any moment, the same approach OBS uses with `.mkv`.
 - When the recording stops, it's converted to a standard **.wav** file (8 kHz, 16-bit mono) and the `.mka` is removed. A setting keeps the `.mka` copy if you want it.
 - If the app or computer crashes mid-recording, the next launch finds the unfinished file and converts it to `.wav` automatically, then tells the user. At most about half a second is lost.
+
+### Monitoring names (for QA)
+- Type the name of the person you're monitoring in the **Monitoring** box on the main screen.
+- Each recording is then named `<Name> MM-DD-YY (n)`, for example `Joe Smith 11-18-26 (1)`, `(2)`, `(3)`.
+- The number continues for the same person on the same day. It still continues after monitoring someone else or restarting the app, because it's worked out from the files already in the recordings folder.
+- Recently used names appear as suggestions, so they're spelled the same each time. Capitalization doesn't break the sequence: `joe smith` continues `Joe Smith`.
+- The line under the box shows the exact name of the next recording.
+- Clear the box to go back to phone-number names. The box can be hidden in Settings.
+
+### Updates
+- The app checks the GitHub repository's latest Release when it opens, then every 6 hours. You can also click **Settings → About → Check for updates**.
+- When a newer version exists, it shows the release notes with three choices:
+  - **Update now:** Windows downloads, verifies and installs the update quietly, then reopens the app. On Mac the `.dmg` opens for dragging into Applications.
+  - **Later:** asks again in 24 hours. Meanwhile an *Update* badge in the title bar opens the window again.
+  - **Skip this version:** doesn't ask again until the next version.
+- It never interrupts a call. An update found during a call is shown after the call ends.
+- The repository is set in `package.json` as `"updateRepo"`. Update checks need the repository to be **public**, because GitHub doesn't show private releases without a login. The code is safe to make public because the company key isn't in it.
 
 ### Provisioning (for IT)
 1. On your own machine, set the employee's extension up on **Line 2**. Your own extension stays on Line 1.
@@ -143,4 +162,4 @@ Logs, with SIP traces and digest responses masked, are written to the app's data
 - Conference and call waiting
 - Wideband codecs (G.722 / Opus)
 - TLS / SRTP
-- Auto-update
+- Fully silent updates on macOS (needs an Apple Developer certificate)

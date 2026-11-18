@@ -337,3 +337,47 @@ details[open] summary { margin-bottom: 4px; }
 .view > * { flex-shrink: 0; }
 body.first-run #keypad, body.first-run .actions, body.first-run .chips { display: none; }
 body.first-run .display { margin-top: 24px; padding: 24px 16px; }
+
+/* ---------- monitoring name ---------- */
+.monitor { display: flex; align-items: center; gap: 8px; padding: 0 6px 0 12px; height: 40px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 4px; transition: border-color .15s; }
+.monitor:focus-within { border-color: var(--primary); }
+.monitor.set { border-color: var(--violet); background: linear-gradient(0deg, rgba(93,91,230,.08), rgba(93,91,230,.08)), var(--surface); }
+.monitor > svg { width: 17px; height: 17px; color: var(--muted); flex: 0 0 17px; }
+.monitor.set > svg { color: var(--violet); }
+.monitor input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-weight: 600; font-size: 13.5px; }
+.monitor input::placeholder { font-weight: 400; color: var(--faint); }
+.monitor .icon-btn { width: 28px; height: 28px; }
+.monitor .icon-btn svg { width: 15px; height: 15px; }
+.monitor-hint { font-size: 11.5px; color: var(--muted); text-align: center; min-height: 15px; margin: 0 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.monitor-hint b { color: var(--violet); font-weight: 600; }
+body.no-monitor .monitor, body.no-monitor .monitor-hint { display: none; }
+.badge.mon { background: rgba(93,91,230,.14); color: var(--violet); }
+
+/* ---------- updates ---------- */
+.tb-update { -webkit-app-region: no-drag; margin-left: auto; font-size: 11.5px; font-weight: 700; color: #fff; padding: 4px 10px; border-radius: 999px;
+  background: linear-gradient(160deg, var(--primary), var(--violet)); box-shadow: 0 3px 10px rgba(26,95,224,.35); }
+.tb-update:hover { filter: brightness(1.08); }
+.notes { max-height: 230px; overflow-y: auto; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: 12.5px; line-height: 1.45; user-select: text; }
+.notes h4 { margin: 10px 0 4px; font-size: 12.5px; }
+.notes h4:first-child { margin-top: 0; }
+.notes ul { margin: 4px 0; padding-left: 18px; }
+.notes p { margin: 4px 0; }
+.notes code { font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; background: var(--surface-3); padding: 1px 4px; border-radius: 4px; }
+.progress { height: 6px; border-radius: 6px; background: var(--surface-3); overflow: hidden; margin-top: 14px; }
+.progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--primary), var(--cyan)); transition: width .2s; }
+.modal .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.modal .spread { justify-content: space-between; align-items: center; }
+
+/* 1.0.2 layout fit */
+.titlebar .brand { white-space: nowrap; }
+body.has-update .titlebar .brand span { display: none; }
+.tb-update { white-space: nowrap; }
+.key { height: 53px; }
+.keypad { gap: 9px; margin-top: 12px; }
+.display { min-height: 98px; padding: 12px 14px 10px; }
+.actions { margin-top: 12px; }
+.chips { margin-top: 10px; }
+.upd-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.upd-skip { display: block; margin: 8px auto 0; font-size: 12px; color: var(--muted); }
+.upd-skip:hover { color: var(--text); text-decoration: underline; }
