@@ -1,7 +1,7 @@
 {
   "name": "channel-blend-softphone",
   "productName": "Channel Blend Softphone",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Channel Blend Softphone — modern SIP softphone for FreePBX / Asterisk",
   "updateRepo": "purdie208/Channel_Blend_Softphone",
   "main": "src/main/main.js",

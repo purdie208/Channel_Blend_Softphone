@@ -282,9 +282,10 @@ function renderIncoming() {
   $('#in-line').textContent = `Incoming call · ${S.lines[c.line].label}`;
 }
 
+const clock = ts => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
 function relTime(ts) {
   const d = new Date(ts), now = new Date();
-  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const time = clock(ts); // with seconds, so QA knows exactly when a session started
   if (d.toDateString() === now.toDateString()) return time;
   const y = new Date(now); y.setDate(now.getDate() - 1);
   if (d.toDateString() === y.toDateString()) return 'Yesterday ' + time;
@@ -294,7 +295,7 @@ function relTime(ts) {
 function renderRecents() {
   const list = S.recents || [];
   $('#recents').innerHTML = list.length ? list.map((r, i) => `
-    <div class="recent" data-i="${i}" title="Click to fill in · double-click to call">
+    <div class="recent" data-i="${i}" title="Started ${new Date(r.at).toLocaleDateString()} ${clock(r.at)}${r.connectedAt ? ' · connected ' + clock(r.connectedAt) : ''}\nClick to fill in · double-click to call">
       <div class="dir ${r.missed ? 'missed' : ''}">${icon(r.direction === 'in' ? 'incoming' : 'outgoing')}</div>
       <div class="who"><b>${esc(r.name || r.number)}</b><span>${r.monitored ? 'Monitoring ' + esc(r.monitored) + ' · ' : ''}${r.name ? esc(r.number) + ' · ' : ''}${r.missed ? 'Missed' : r.duration ? fmtDur(r.duration) : esc(r.result || '')}</span></div>
       <div class="when">${relTime(r.at)}<br>${esc((S.lines[r.line] || {}).label || '')}</div>

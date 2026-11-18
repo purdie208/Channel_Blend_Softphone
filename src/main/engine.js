@@ -158,7 +158,7 @@ class PhoneEngine extends EventEmitter {
     const missed = call.direction === 'in' && !call.connectedAt;
     const monitored = (this.store.get().monitor.name || '').trim();
     this.recents.unshift({ number: call.remoteNumber, name: call.remoteName, direction: call.direction, line: a.line, monitored: call.connectedAt ? monitored : '',
-      at: call.startedAt, duration, missed, result: call.connectedAt ? 'answered' : reason });
+      at: call.startedAt, connectedAt: call.connectedAt || null, duration, missed, result: call.connectedAt ? 'answered' : reason });
     this.recents = this.recents.slice(0, 200);
     try { fs.writeFileSync(this.recentsFile, JSON.stringify(this.recents)); } catch (_) {}
     this.active = null;
