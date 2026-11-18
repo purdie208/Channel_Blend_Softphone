@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# Company provisioning key: never upload this
+src/main/config/provisioning.key

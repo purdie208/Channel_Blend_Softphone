@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob: mediastream:">
+  <title>Channel Blend Softphone</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="titlebar">
+    <img src="assets/logo-96.png" alt="">
+    <div class="brand">Channel Blend <span>Softphone</span></div>
+  </div>
+
+  <main>
+    <!-- ================= PHONE ================= -->
+    <section class="view" id="view-phone">
+      <div class="lines" id="lines"></div>
+
+      <div class="display" id="display">
+        <div id="welcome" class="welcome hidden">
+          <img src="assets/logo-96.png" alt="">
+          <h2>Welcome to Channel Blend</h2>
+          <p>Your IT team will send you a settings file.<br>Click below and choose that file — that's it.</p>
+          <div class="row">
+            <button class="btn primary big" data-action="import"><i data-icon="download"></i>Import settings file</button>
+          </div>
+          <div class="row" style="margin-top:8px"><button class="link" data-goto="settings">Set up manually</button></div>
+        </div>
+
+        <div id="idle-display">
+          <div class="number-row">
+            <div style="width:36px"></div>
+            <input id="number" autocomplete="off" spellcheck="false" placeholder="Enter a number or extension">
+            <button class="icon-btn" id="backspace" title="Delete (Backspace)"><i data-icon="backspace"></i></button>
+          </div>
+          <div class="status-line" id="status-line"></div>
+        </div>
+
+        <div id="call-display" class="hidden">
+          <div class="call-card">
+            <div class="avatar" id="call-avatar">?</div>
+            <div class="call-info">
+              <div class="who" id="call-who"></div>
+              <div class="num" id="call-num"></div>
+              <div class="state" id="call-state"></div>
+            </div>
+            <div class="badges" id="call-badges"></div>
+          </div>
+          <div class="dtmf-sent" id="dtmf-sent"></div>
+        </div>
+      </div>
+
+      <div class="keypad" id="keypad"></div>
+
+      <div class="actions">
+        <div class="act">
+          <button class="round" id="btn-mute" title="Mute microphone"><i data-icon="mic"></i></button>
+          <div class="round-label" id="lbl-mute">Mute</div>
+        </div>
+        <div class="act">
+          <button class="call-btn" id="btn-call" title="Call (Enter)"><i data-icon="phone"></i></button>
+        </div>
+        <div class="act">
+          <button class="round" id="btn-rec" title="Record call"><i data-icon="record"></i></button>
+          <div class="round-label" id="lbl-rec">Record</div>
+        </div>
+      </div>
+
+      <div class="chips">
+        <button class="chip" id="chip-autorec" title="Start recording automatically when a call connects"><i data-icon="record"></i>Auto-record</button>
+        <button class="chip" id="chip-automute" title="Mute automatically when a call connects"><i data-icon="micoff"></i>Auto-mute</button>
+        <button class="chip hidden" id="chip-hold"><i data-icon="pause"></i>Hold</button>
+      </div>
+    </section>
+
+    <!-- ================= RECENTS ================= -->
+    <section class="view hidden" id="view-recents">
+      <div class="section-title"><h2>Recent calls</h2><button class="link danger" id="clear-recents">Clear</button></div>
+      <div class="list" id="recents"></div>
+    </section>
+
+    <!-- ================= SETTINGS ================= -->
+    <section class="view hidden" id="view-settings">
+      <div class="section-title"><h2>Settings</h2></div>
+
+      <div class="card">
+        <h3>Phone lines</h3>
+        <div class="seg" id="line-tabs">
+          <button data-line="0" class="active">Line 1</button>
+          <button data-line="1">Line 2</button>
+        </div>
+        <div class="line-status"><span class="dot" id="ls-dot"></span><span class="txt" id="ls-text"></span><button class="link" id="ls-reconnect">Reconnect</button></div>
+        <div class="banner hidden" id="prov-banner"><i data-icon="lock"></i><div>Set up by IT. <button class="link" id="prov-unlock" style="padding:0">Edit anyway</button></div></div>
+        <div class="toggle-row" style="margin-top:6px"><div class="t"><b>Use this line</b><span id="line-enabled-hint">Line 2 is handy for testing extensions</span></div><label class="switch"><input type="checkbox" id="f-enabled"><span></span></label></div>
+        <div class="field"><label for="f-display">Display name</label><input class="input" id="f-display" placeholder="e.g. Jane Smith — QA"></div>
+        <div class="row2">
+          <div class="field"><label for="f-user">User name</label><input class="input" id="f-user" placeholder="1001"></div>
+          <div class="field"><label for="f-auth">Authorization user name</label><input class="input" id="f-auth" placeholder="Same as user name"></div>
+        </div>
+        <div class="field"><label for="f-pass">Password</label><input class="input" type="password" id="f-pass" autocomplete="new-password"></div>
+        <div class="field"><label for="f-domain">Domain</label><input class="input" id="f-domain" placeholder="pbx.yourcompany.com"><span class="hint">Your FreePBX address. Add :port if it isn't 5060.</span></div>
+        <div class="btn-row">
+          <button class="btn primary" id="line-save"><i data-icon="check"></i>Save &amp; connect</button>
+          <button class="btn" data-action="import"><i data-icon="download"></i>Import</button>
+          <button class="btn" id="line-export"><i data-icon="upload"></i>Export</button>
+        </div>
+        <div class="btn-row" style="margin-top:6px"><button class="link danger" id="line-clear">Remove this line's settings</button></div>
+      </div>
+
+      <div class="card">
+        <h3>Calls &amp; recording</h3>
+        <div class="toggle-row"><div class="t"><b>Record automatically</b><span>Starts when a call connects</span></div><label class="switch"><input type="checkbox" id="s-autorec"><span></span></label></div>
+        <div class="toggle-row"><div class="t"><b>Mute automatically</b><span>For listening to live calls</span></div><label class="switch"><input type="checkbox" id="s-automute"><span></span></label></div>
+        <div class="toggle-row"><div class="t"><b>Clear number after a call</b><span>Ready for the next number</span></div><label class="switch"><input type="checkbox" id="s-clear"><span></span></label></div>
+        <div class="toggle-row"><div class="t"><b>Sound when a call ends</b><span>A short tone when the other side hangs up</span></div><label class="switch"><input type="checkbox" id="s-endsound"><span></span></label></div>
+        <div class="toggle-row"><div class="t"><b>Notify when a call ends</b><span>In the app, and on the desktop if it's in the background</span></div><label class="switch"><input type="checkbox" id="s-endnotify"><span></span></label></div>
+        <div class="toggle-row"><div class="t"><b>Keypad tones</b><span>Hear a tone when you press a key</span></div><label class="switch"><input type="checkbox" id="s-tones"><span></span></label></div>
+        <div class="field"><label>Recordings are saved to</label><div class="path" id="rec-folder"></div></div>
+        <div class="btn-row">
+          <button class="btn" id="rec-change"><i data-icon="folder"></i>Change…</button>
+          <button class="btn" id="rec-open">Open folder</button>
+        </div>
+        <div class="toggle-row" style="margin-top:6px"><div class="t"><b>Keep the .mka copy</b><span>The crash-safe file used while recording</span></div><label class="switch"><input type="checkbox" id="s-keepmka"><span></span></label></div>
+      </div>
+
+      <div class="card">
+        <h3>Audio</h3>
+        <div class="field"><label for="a-speaker">Speaker / headset</label><select class="input" id="a-speaker"></select></div>
+        <div class="field"><label for="a-mic">Microphone</label><select class="input" id="a-mic"></select><span class="hint">Optional. A microphone is only needed if you want to talk.</span></div>
+        <div class="field"><label>Microphone volume</label><input type="range" id="a-micvol" min="0" max="200"></div>
+        <div class="field"><label>Ring volume</label><input type="range" id="a-ringvol" min="0" max="100"></div>
+        <div class="btn-row"><button class="btn" id="a-test"><i data-icon="volume"></i>Test speaker</button></div>
+      </div>
+
+      <div class="card">
+        <h3>Appearance</h3>
+        <div class="seg" id="theme-seg">
+          <button data-theme="system"><i data-icon="monitor"></i>System</button>
+          <button data-theme="light"><i data-icon="sun"></i>Light</button>
+          <button data-theme="dark"><i data-icon="moon"></i>Dark</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <details>
+          <summary>Advanced network <span>›</span></summary>
+          <div class="row2">
+            <div class="field"><label>Local SIP port</label><input class="input" id="n-sip" type="number" min="0" max="65535"><span class="hint">0 = automatic</span></div>
+            <div class="field"><label>Re-register every (s)</label><input class="input" id="n-exp" type="number" min="60" max="7200"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>RTP ports from</label><input class="input" id="n-rtpmin" type="number" min="1024" max="65534"></div>
+            <div class="field"><label>to</label><input class="input" id="n-rtpmax" type="number" min="1024" max="65534"></div>
+          </div>
+          <div class="field"><label>Keep-alive every (s)</label><input class="input" id="n-ka" type="number" min="10" max="300"></div>
+          <div class="toggle-row"><div class="t"><b>Use public address (rport)</b><span>Recommended for people working from home</span></div><label class="switch"><input type="checkbox" id="n-public"><span></span></label></div>
+          <div class="btn-row"><button class="btn primary" id="n-save">Save network settings</button></div>
+        </details>
+      </div>
+
+      <div class="card">
+        <h3>About</h3>
+        <p style="margin:0;color:var(--muted);font-size:12.5px" id="about"></p>
+        <div class="btn-row"><button class="btn" id="show-logs">Show log file</button></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="audio-strip">
+      <button class="icon-btn" id="vol-icon" title="Speaker volume"><i data-icon="volume"></i></button>
+      <input type="range" id="speaker-vol" min="0" max="150" title="Speaker volume">
+      <button class="icon-btn" id="devices-btn" title="Audio devices"><i data-icon="headphones"></i></button>
+    </div>
+    <nav class="tabs">
+      <button class="tab active" data-goto="phone"><i data-icon="grid"></i>Keypad</button>
+      <button class="tab" data-goto="recents"><i data-icon="clock"></i>Recents</button>
+      <button class="tab" data-goto="settings"><i data-icon="sliders"></i>Settings</button>
+    </nav>
+  </footer>
+
+  <div class="popover hidden" id="devices-pop">
+    <h4>Audio devices</h4>
+    <div class="field"><label>Speaker / headset</label><select class="input" id="q-speaker"></select></div>
+    <div class="field"><label>Microphone (optional)</label><select class="input" id="q-mic"></select></div>
+  </div>
+
+  <div class="incoming hidden" id="incoming">
+    <div class="lbl" id="in-line">Incoming call</div>
+    <div class="ring"><div class="avatar" id="in-avatar">?</div></div>
+    <div class="who" id="in-who"></div>
+    <div class="num" id="in-num"></div>
+    <div class="btns">
+      <div class="act"><button class="call-btn decline" id="in-decline" title="Decline (Esc)"><i data-icon="phone"></i></button><span>Decline</span></div>
+      <div class="act"><button class="call-btn" id="in-answer" title="Answer (Enter)"><i data-icon="phone"></i></button><span>Answer</span></div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="modal-wrap"><div class="modal" id="modal"></div></div>
+  <div class="toasts" id="toasts"></div>
+  <div class="drop-hint hidden" id="drop-hint">Drop the settings file to import it</div>
+
+  <script src="icons.js"></script>
+  <script src="audio.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

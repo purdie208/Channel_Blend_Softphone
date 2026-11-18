@@ -1,0 +1,84 @@
+{
+  "name": "channel-blend-softphone",
+  "productName": "Channel Blend Softphone",
+  "version": "1.0.1",
+  "description": "Channel Blend Softphone \u2014 modern SIP softphone for FreePBX / Asterisk",
+  "main": "src/main/main.js",
+  "author": "Channel Blend IT",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/fake-pbx-test.js && node test/main-smoke.js",
+    "dist:win": "electron-builder --win nsis --x64",
+    "dist:mac": "electron-builder --mac dmg --universal",
+    "dist": "electron-builder",
+    "make-key": "node scripts/make-key.js"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.channelblend.softphone",
+    "productName": "Channel Blend Softphone",
+    "copyright": "Channel Blend",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "cbprov",
+        "name": "Channel Blend Settings",
+        "description": "Channel Blend Softphone settings file",
+        "role": "Viewer",
+        "icon": "icon"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "ChannelBlendSoftphone-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Channel Blend Softphone"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.business",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Channel Blend uses your microphone only when you unmute during a call.",
+        "NSLocalNetworkUsageDescription": "Channel Blend connects to your company phone system."
+      },
+      "artifactName": "ChannelBlendSoftphone-${version}.${ext}"
+    }
+  }
+}

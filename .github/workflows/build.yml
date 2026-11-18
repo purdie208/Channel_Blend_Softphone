@@ -1,0 +1,43 @@
+name: Build installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            script: dist:win
+          - os: macos-latest
+            script: dist:mac
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Add company provisioning key
+        shell: bash
+        env:
+          CB_PROVISIONING_KEY: ${{ secrets.CB_PROVISIONING_KEY }}
+        run: |
+          if [ -z "$CB_PROVISIONING_KEY" ]; then
+            echo "::error::Add the CB_PROVISIONING_KEY repository secret first (see README > The company key)."
+            exit 1
+          fi
+          printf '%s' "$CB_PROVISIONING_KEY" > src/main/config/provisioning.key
+      - run: npm install
+      - run: npm test
+      - run: npm run ${{ matrix.script }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
