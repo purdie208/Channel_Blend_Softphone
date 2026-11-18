@@ -10,9 +10,9 @@
   "scripts": {
     "start": "electron .",
     "test": "node test/fake-pbx-test.js && node test/main-smoke.js",
-    "dist:win": "electron-builder --win nsis --x64",
-    "dist:mac": "electron-builder --mac dmg --universal",
-    "dist": "electron-builder",
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg --universal --publish never",
+    "dist": "electron-builder --publish never",
     "make-key": "node scripts/make-key.js"
   },
   "devDependencies": {
