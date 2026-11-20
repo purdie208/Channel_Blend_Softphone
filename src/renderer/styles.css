@@ -381,3 +381,7 @@ body.has-update .titlebar .brand span { display: none; }
 .upd-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .upd-skip { display: block; margin: 8px auto 0; font-size: 12px; color: var(--muted); }
 .upd-skip:hover { color: var(--text); text-decoration: underline; }
+/* Settings line status dot: keep the status colours (the generic grey rule above was winning) */
+.line-status .dot.registered { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+.line-status .dot.registering { background: var(--warn); animation: blink 1s infinite; }
+.line-status .dot.failed { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }

@@ -5,6 +5,10 @@ It registers over plain **SIP/UDP** with the usual account details (user name, p
 authorization user name, domain, plus an optional display name). It needs no WebSocket gateway and
 no changes on the PBX.
 
+<p align="center">
+  <img src="docs/screenshots/banner.png" alt="Channel Blend Softphone in light and dark mode: keypad, active call, recent calls and settings" width="100%">
+</p>
+
 It's designed for call centers and QA teams. It works without a microphone, records calls in a
 crash-safe way, and lets IT hand out a ready-to-use configuration without ever sharing a password.
 
@@ -18,6 +22,28 @@ crash-safe way, and lets IT hand out a ready-to-use configuration without ever s
 - **Call-ended sound and notification**, so the user always knows when the other side hung up.
 - **Recordings named after the person being monitored**, e.g. `Joe Smith 11-18-26 (3).wav`.
 - **Built-in update check** that shows what's new and lets the user choose *Update now*, *Later* or *Skip this version*.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/01-keypad.png" width="250" alt="Keypad with the Monitoring name box"><br><sub><b>Keypad</b> · monitoring name shows the next recording's file name</sub></td>
+    <td align="center"><img src="docs/screenshots/02-in-call.png" width="250" alt="Active call while recording and muted"><br><sub><b>In a call</b> · recording, auto-muted, monitoring</sub></td>
+    <td align="center"><img src="docs/screenshots/03-incoming.png" width="250" alt="Incoming call screen"><br><sub><b>Incoming call</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/04-recents.png" width="250" alt="Recent calls with exact start times"><br><sub><b>Recents</b> · start times to the second</sub></td>
+    <td align="center"><img src="docs/screenshots/05-settings.png" width="250" alt="Phone line settings"><br><sub><b>Phone lines</b> · set up by IT, password never shown</sub></td>
+    <td align="center"><img src="docs/screenshots/06-settings-recording.png" width="250" alt="Call and recording settings"><br><sub><b>Calls &amp; recording</b> settings</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/09-welcome.png" width="250" alt="First launch welcome screen"><br><sub><b>First launch</b> · one-click import</sub></td>
+    <td align="center"><img src="docs/screenshots/07-import.png" width="250" alt="Importing a settings file from IT"><br><sub><b>Importing a settings file</b></sub></td>
+    <td align="center"><img src="docs/screenshots/08-update.png" width="250" alt="Update available window"><br><sub><b>Update available</b> · now, later or skip</sub></td>
+  </tr>
+</table>
+
+<sub>Screenshots use demo data.</sub>
 
 ## Features
 
@@ -151,7 +177,8 @@ src/main/config/          Settings store, .cbprov provisioning
 src/renderer/             UI (HTML/CSS/JS), audio worklets, icons
 test/                     Fake-PBX end-to-end test, main-process smoke test
 build/                    App icons, macOS entitlements
-ci/                       GitHub Actions workflow
+ci/                       GitHub Actions workflow (copy)
+docs/screenshots/         README screenshots
 ```
 
 Logs, with SIP traces and digest responses masked, are written to the app's data folder. You can open them from
