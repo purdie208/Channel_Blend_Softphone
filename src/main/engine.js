@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { EventEmitter } = require('events');
 const { SipUA } = require('./sip/ua');
+const { shortDate } = require('./recording/recorder');
 
 class PhoneEngine extends EventEmitter {
   constructor({ store, recorder, dataDir, userAgent = 'Channel Blend Softphone', log = () => {} }) {
@@ -83,9 +84,10 @@ class PhoneEngine extends EventEmitter {
       const a = this.active;
       call = { ...a.call.info(), line: a.line, muted: a.muted, micMissing: a.micMissing,
         wantMic: a.call.state === 'connected' && !a.muted,
-        recording: this.recorder.isRecording ? { active: true, startedAt: a.recStartedAt, file: path.basename(this.recorder.file).replace(/\.mka$/i, '.wav'), person: a.recPerson || '' } : { active: false } };
+        recording: this.recorder.isRecording ? { active: true, startedAt: a.recStartedAt, file: path.basename(this.recorder.file).replace(/\.mka$/i, '.wav'), person: a.recPerson || '', unnamed: this.recorder.isUnnamed } : { active: false } };
     }
-    return { lines, activeLine: s.activeLine, call, settings: s, recents: this.recents.slice(0, 100) };
+    return { lines, activeLine: s.activeLine, call, settings: s, recents: this.recents.slice(0, 100),
+      lastUnnamedRecording: this.lastUnnamed ? path.basename(this.lastUnnamed.wavPath) : null };
   }
 
   _emitState() {
@@ -202,6 +204,7 @@ class PhoneEngine extends EventEmitter {
     const a = this.active;
     if (!a || a.call.state !== 'connected' || this.recorder.isRecording) return;
     const s = this.store.get();
+    this.lastUnnamed = null; // only the latest recording can be named afterwards
     try {
       const person = (s.monitor && s.monitor.name || '').trim();
       this.recorder.start({ folder: s.recording.folder, extension: s.lines[a.line].username, number: a.call.remoteNumber, person });
@@ -216,7 +219,37 @@ class PhoneEngine extends EventEmitter {
 
   _finishRecording() {
     if (!this.recorder.isRecording) return null;
-    return this.recorder.stop({ keepMka: this.store.get().recording.keepMka });
+    // A name typed while an unnamed recording was running is applied as the file is converted.
+    const lateName = ((this.store.get().monitor || {}).name || '').trim();
+    const r = this.recorder.stop({ keepMka: this.store.get().recording.keepMka, person: lateName });
+    if (r && r.named) this.rememberPerson(lateName);
+    // Still unnamed? Keep it as the one recording a name can be given to afterwards.
+    this.lastUnnamed = r && r.unnamed ? { wavPath: r.wavPath, startedAt: r.startedAt, folder: r.folder } : null;
+    return r;
+  }
+
+  /**
+   * Called when the user finishes typing a monitoring name (Enter or leaving the box).
+   * If the last recording was made without a name, and nothing has been recorded since,
+   * it is renamed "<Name> MM-DD-YY (n).wav".
+   */
+  commitPerson(name) {
+    name = String(name || '').trim();
+    const t = this.lastUnnamed;
+    if (!name || !t || this.recorder.isRecording) return null;
+    if (shortDate(new Date(t.startedAt)) !== shortDate()) { this.lastUnnamed = null; this._emitState(); return null; }
+    try {
+      const newPath = this.recorder.renameToPerson(t, name);
+      if (!newPath) return null;
+      this.lastUnnamed = null;
+      this.rememberPerson(name);
+      this.emit('toast', { type: 'success', title: 'Recording renamed', text: path.basename(newPath), path: newPath });
+      this._emitState();
+      return newPath;
+    } catch (e) {
+      this.emit('toast', { type: 'error', title: 'Could not rename the recording', text: /EBUSY|EPERM|EACCES/.test(e.code || '') ? 'Close it in your media player, then press Enter in the name box again.' : e.message });
+      return null;
+    }
   }
 
   toggleRecording() {

@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('cb', {
   hold: invoke('call:hold'),
   toggleRecording: invoke('rec:toggle'),
   nextRecordingName: invoke('rec:next-name'),
+  commitMonitorName: invoke('monitor:commit'),
   micUnavailable: invoke('mic:unavailable'),
   requestMicAccess: invoke('mic:request-access'),
   chooseRecordingFolder: invoke('rec:choose-folder'),

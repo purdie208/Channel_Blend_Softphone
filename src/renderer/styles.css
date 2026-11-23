@@ -385,3 +385,8 @@ body.has-update .titlebar .brand span { display: none; }
 .line-status .dot.registered { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
 .line-status .dot.registering { background: var(--warn); animation: blink 1s infinite; }
 .line-status .dot.failed { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+
+/* 1.0.4: large call timer, readable at a glance while taking notes */
+.call-info .state.live { font-family: var(--display-font); font-size: 34px; font-weight: 600; line-height: 1.05; letter-spacing: .5px; margin-top: 4px; color: var(--text); }
+.call-info .state.live.held { color: var(--warn); }
+.call-info .state.live.held::after { content: " on hold"; font-size: 13px; font-weight: 600; letter-spacing: 0; margin-left: 6px; vertical-align: middle; }

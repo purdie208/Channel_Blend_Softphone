@@ -166,10 +166,18 @@ async function updateMonitorHint() {
   const name = $('#monitor-name').value.trim();
   const c = S && S.call;
   const hint = $('#monitor-hint');
-  if (c && c.recording && c.recording.active) { hint.innerHTML = `Recording to <b>${esc(c.recording.file)}</b>`; return; }
-  if (!name) { hint.textContent = 'Recordings use the phone number unless you enter a name'; return; }
+  const rec = c && c.recording && c.recording.active ? c.recording : null;
+  if (rec && rec.unnamed && !name) { hint.innerHTML = `Recording · <b>type a name above</b> to save it under that person`; return; }
+  if (rec && !(rec.unnamed && name)) { hint.innerHTML = `Recording to <b>${esc(rec.file)}</b>`; return; }
+  if (!name) {
+    hint.textContent = S.lastUnnamedRecording ? 'Forgot the name? Type it here to name your last recording' : 'Recordings use the phone number unless you enter a name';
+    return;
+  }
   const r = await cb.nextRecordingName(name);
-  if (r && r.name && $('#monitor-name').value.trim() === name) hint.innerHTML = `Next recording: <b>${esc(r.name)}.wav</b>`;
+  if (!r || !r.name || $('#monitor-name').value.trim() !== name) return;
+  if (rec) hint.innerHTML = `Recording · will be saved as <b>${esc(r.name)}.wav</b>`;
+  else if (S.lastUnnamedRecording) hint.innerHTML = `Press Enter to name your last recording <b>${esc(r.name)}.wav</b>`;
+  else hint.innerHTML = `Next recording: <b>${esc(r.name)}.wav</b>`;
 }
 function saveMonitor() {
   clearTimeout(monitorSaveTimer);
@@ -182,7 +190,14 @@ $('#monitor-name').addEventListener('input', () => {
   saveMonitor(); updateMonitorHint();
 });
 $('#monitor-name').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); $('#monitor-name').blur(); $('#number').focus(); } });
-$('#monitor-name').addEventListener('blur', () => { $('#monitor-name').value = $('#monitor-name').value.replace(/\s+/g, ' ').trim(); saveMonitor(); });
+$('#monitor-name').addEventListener('blur', async () => {
+  const name = $('#monitor-name').value.replace(/\s+/g, ' ').trim();
+  $('#monitor-name').value = name;
+  clearTimeout(monitorSaveTimer);
+  await cb.updateSettings({ monitor: { name } });
+  // Name entered after an unnamed recording finished -> that recording gets the name.
+  if (name && S && S.lastUnnamedRecording) cb.commitMonitorName(name);
+});
 $('#monitor-clear').addEventListener('click', () => { $('#monitor-name').value = ''; $('#monitor-name').dispatchEvent(new Event('input')); $('#monitor-name').focus(); });
 
 function renderLines() {
@@ -267,7 +282,10 @@ function renderPhone() {
 function updateCallTimer() {
   const c = S && S.call; if (!c) return;
   const st = { calling: 'Calling…', ringing: 'Ringing…', early: 'Ringing…', incoming: 'Incoming call…' }[c.state];
-  $('#call-state').textContent = c.state === 'connected' ? (c.onHold ? 'On hold · ' : '') + fmtDur((Date.now() - c.connectedAt) / 1000) : (st || '');
+  const live = c.state === 'connected';
+  $('#call-state').classList.toggle('live', live);
+  $('#call-state').classList.toggle('held', live && !!c.onHold);
+  $('#call-state').textContent = live ? fmtDur((Date.now() - c.connectedAt) / 1000) : (st || '');
   $('#lbl-rec').textContent = c.recording.active ? fmtDur((Date.now() - c.recording.startedAt) / 1000) : 'Record';
 }
 

@@ -110,7 +110,7 @@ class Recorder {
     const j = this._journal();
     j.active.push({ mka, startedAt: Date.now(), pid: process.pid });
     this._saveJournal(j);
-    this.active = { writer, mka, startedAt: Date.now() };
+    this.active = { writer, mka, startedAt: Date.now(), person: who, folder };
     this.log(`recording started ${mka}`);
     return mka;
   }
@@ -127,20 +127,54 @@ class Recorder {
     try { this.active.writer.write(out); } catch (e) { this.log('recording write failed: ' + e.message); }
   }
 
-  /** Stop and convert. Returns { wavPath, seconds } or null. */
-  stop({ keepMka = false } = {}) {
-    if (!this.active) return null;
-    const { writer, mka } = this.active;
-    this.active = null;
-    try { writer.close(); } catch (e) { this.log('close failed ' + e.message); }
-    return this._finalize(mka, keepMka);
+  /** True if the recording in progress was started without a person's name. */
+  get isUnnamed() { return !!this.active && !this.active.person; }
+
+  /** File name (without extension) a recording started at `startedAt` would get for `person`. */
+  _namedBase(folder, person, startedAt) {
+    const who = personName(person);
+    if (!who) return null;
+    const date = shortDate(new Date(startedAt));
+    const next = nextSequence(folder, who, date, true);
+    return `${next.name} ${date} (${next.n})`;
   }
 
-  _finalize(mka, keepMka) {
+  /**
+   * Stop and convert. If the recording was started without a name and `person` is given now,
+   * the .wav gets that person's name. Returns { wavPath, seconds, named, unnamed, startedAt, folder } or null.
+   */
+  stop({ keepMka = false, person = '' } = {}) {
+    if (!this.active) return null;
+    const { writer, mka, startedAt, folder } = this.active;
+    const unnamedStart = !this.active.person;
+    this.active = null;
+    try { writer.close(); } catch (e) { this.log('close failed ' + e.message); }
+    const base = unnamedStart ? this._namedBase(folder, person, startedAt) : null;
+    const r = this._finalize(mka, keepMka, base ? path.join(folder, base + '.wav') : null);
+    if (r) Object.assign(r, { named: !!base, unnamed: unnamedStart && !base, startedAt, folder });
+    return r;
+  }
+
+  /**
+   * Give an already-finished, unnamed recording a person's name, e.g.
+   * "CB_1001_..._.wav" -> "Joe Smith 11-23-26 (1).wav". Returns the new path.
+   */
+  renameToPerson({ wavPath, startedAt, folder }, person) {
+    const base = this._namedBase(folder, person, startedAt);
+    if (!base) return null;
+    const target = path.join(folder, base + '.wav');
+    fs.renameSync(wavPath, target);
+    const oldMka = wavPath.replace(/\.wav$/i, '.mka');
+    if (fs.existsSync(oldMka)) { try { fs.renameSync(oldMka, path.join(folder, base + '.mka')); } catch (_) {} }
+    return target;
+  }
+
+  _finalize(mka, keepMka, wavTarget) {
     let result = null;
     try {
-      result = convertMkaToWav(mka);
+      result = convertMkaToWav(mka, wavTarget || undefined);
       if (!keepMka) fs.unlinkSync(mka);
+      else if (wavTarget) { try { fs.renameSync(mka, wavTarget.replace(/\.wav$/i, '.mka')); } catch (_) {} }
     } catch (e) {
       this.log(`conversion failed for ${mka}: ${e.message}`);
       return null; // leave the .mka + journal entry so the next start retries

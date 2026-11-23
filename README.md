@@ -53,6 +53,7 @@ crash-safe way, and lets IT hand out a ready-to-use configuration without ever s
 - During a call, keys send DTMF using RFC 2833 / RFC 4733, falling back to SIP INFO.
 - The number clears automatically after each call, ready for the next one.
 - Incoming calls get a full-screen answer/decline view, a ringtone and a desktop notification. **Enter** answers and **Esc** declines.
+- Large call timer, easy to read at a glance while taking notes.
 - Hold / resume.
 - A second incoming call during an active call gets a busy signal.
 - Recent calls list: click to fill in the number, double-click to call back.
@@ -76,6 +77,7 @@ crash-safe way, and lets IT hand out a ready-to-use configuration without ever s
 - The number continues for the same person on the same day. It still continues after monitoring someone else or restarting the app, because it's worked out from the files already in the recordings folder.
 - Recently used names appear as suggestions, so they're spelled the same each time. Capitalization doesn't break the sequence: `joe smith` continues `Joe Smith`.
 - The line under the box shows the exact name of the next recording.
+- **Forgot to enter the name?** Type it while the recording is running and the finished `.wav` gets that name. If the recording has already finished, type the name and press **Enter**; the last unnamed recording is renamed, as long as no new recording has started since.
 - Clear the box to go back to phone-number names. The box can be hidden in Settings.
 
 ### Updates

@@ -202,6 +202,7 @@ function registerIpc() {
   h('call:mute', (m) => engine.setMute(m));
   h('call:hold', (v) => engine.setHold(v));
   h('rec:toggle', () => engine.toggleRecording());
+  h('monitor:commit', (name) => engine.commitPerson(name));
   h('rec:next-name', (person) => {
     const who = personName(person);
     if (!who) return { name: null };
